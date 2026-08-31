@@ -152,6 +152,8 @@ function createScanPass(
   useConvert: boolean,
   convertSpread: number,
 ) {
+  // Crypto-only universe: xStocks and fiat pairs never enter the graph.
+  instruments = instruments.filter(isCryptoInstrument);
   const graph = buildGraph(instruments, tickers);
   for (const edges of graph.values()) edges.sort((a, b) => b.volume - a.volume);
   const index = buildUsdIndex(instruments, tickers);
