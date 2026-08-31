@@ -155,9 +155,10 @@ function createScanPass(
   maxLegs: number,
   useConvert: boolean,
   convertSpread: number,
+  universe: Universe,
 ) {
-  // Crypto-only universe: xStocks and fiat pairs never enter the graph.
-  instruments = instruments.filter(isCryptoInstrument);
+  // Universe filter: crypto mode drops xStocks/fiat; xstocks mode keeps only USDT-quoted xStocks.
+  instruments = instruments.filter(universe === "xstocks" ? isXstockInstrument : isCryptoInstrument);
   const graph = buildGraph(instruments, tickers);
   for (const edges of graph.values()) edges.sort((a, b) => b.volume - a.volume);
   const index = buildUsdIndex(instruments, tickers);
@@ -165,8 +166,8 @@ function createScanPass(
   const isStockAsset = (asset: string) => stockAssets.has(asset);
   const usd = index.usd;
 
-  // Every asset on the platform is a start: spot coins, quote currencies and xStocks.
-  const startSet = new Set<string>([...graph.keys(), ...usd.keys()]);
+  // xStocks mode: USDT is the hub and only crypto, so it is the only start asset.
+  const startSet = new Set<string>(universe === "xstocks" ? ["USDT"] : [...graph.keys(), ...usd.keys()]);
   const priority = new Map(["USDT", "USDC", "BTC", "ETH"].map((asset, rank) => [asset, rank]));
   const spotStarts = [...startSet].sort((a, b) => {
     const pa = priority.get(a) ?? Infinity;
