@@ -532,7 +532,7 @@ function formatUsd(value: number) {
 }
 
 /** Detailed per-leg walkthrough of one route, simulated with a $1 notional. */
-function RouteDetail({ opportunity, fee, convertSpread, fetchedAt, onClose }: { opportunity: Opportunity | null; fee: number; convertSpread: number; fetchedAt?: string; onClose: () => void }) {
+function RouteDetail({ opportunity, fee, convertSpread, fetchedAt, onClose }: { opportunity: Opportunity | null; fee: number; convertSpread: number; fetchedAt?: string | undefined; onClose: () => void }) {
   if (!opportunity) return null;
   const start = opportunity.assets[0] ?? "";
 
