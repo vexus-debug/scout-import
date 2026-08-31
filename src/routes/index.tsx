@@ -52,9 +52,9 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Loopline — Bybit Arbitrage Scanner" },
-      { name: "description", content: "Live triangular arbitrage scanner for Bybit spot and xStocks market data." },
+      { name: "description", content: "Live triangular arbitrage scanner for Bybit crypto spot markets." },
       { property: "og:title", content: "Loopline — Bybit Arbitrage Scanner" },
-      { property: "og:description", content: "Live triangular arbitrage scanner for Bybit spot and xStocks market data." },
+      { property: "og:description", content: "Live triangular arbitrage scanner for Bybit crypto spot markets." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -454,13 +454,13 @@ function Scanner() {
 
       <div className="relative mx-auto max-w-[1440px] px-5 pb-12 pt-8 lg:px-8 lg:pt-12">
         <section className="mb-9 flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
-          <div><div className="eyebrow mb-3 flex items-center gap-2"><span className="h-px w-6 bg-primary" /> Market scanner / spot</div><h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">Find the gap<br /><span className="text-primary">before it closes.</span></h1><p className="mt-4 max-w-xl text-sm leading-6 text-muted-foreground">Triangular routes across Bybit spot markets, including the newly listed xStocks instruments.</p></div>
+          <div><div className="eyebrow mb-3 flex items-center gap-2"><span className="h-px w-6 bg-primary" /> Market scanner / spot</div><h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">Find the gap<br /><span className="text-primary">before it closes.</span></h1><p className="mt-4 max-w-xl text-sm leading-6 text-muted-foreground">Triangular routes across every crypto coin quoted on Bybit spot — no fiat, no tokenized stocks.</p></div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground"><Clock3 className="h-4 w-4 text-primary" /> Updated {lastUpdated}<span className="text-border">·</span>10s cadence</div>
         </section>
 
         <section className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Metric label="Live instruments" value={market ? market.instruments.length.toLocaleString() : "—"} detail="Bybit spot" icon={<LayoutGrid />} />
-          <Metric label="xStocks listed" value={xstocks.length ? xstocks.length.toString() : "—"} detail="Spot symbols" icon={<WalletCards />} tone="warning" />
+          <Metric label="Crypto pairs" value={cryptoInstruments.length ? cryptoInstruments.length.toLocaleString() : "—"} detail="Scanned universe" icon={<WalletCards />} tone="positive" />
           <Metric label="Routes above floor" value={filtered.length.toString()} detail={`${minProfit}% net threshold`} icon={<Zap />} tone="positive" />
           <Metric label="Best net edge" value={best ? formatPercent(best.net) : "—"} detail={best ? best.assets.slice(0, 3).join(" → ") : "Waiting for quotes"} icon={<Gauge />} tone="coral" />
         </section>
