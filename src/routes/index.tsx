@@ -347,6 +347,7 @@ function Scanner() {
   const [maxLegs, setMaxLegs] = useState(4);
   const [useConvert, setUseConvert] = useState(true);
   const [convertSpread, setConvertSpread] = useState(DEFAULT_CONVERT_SPREAD);
+  const [universe, setUniverse] = useState<Universe>("crypto");
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<"opportunities" | "markets">("opportunities");
   const [selected, setSelected] = useState<Opportunity | null>(null);
