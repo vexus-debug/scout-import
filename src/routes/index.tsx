@@ -459,7 +459,7 @@ function Scanner() {
 
       <div className="relative mx-auto max-w-[1440px] px-5 pb-12 pt-8 lg:px-8 lg:pt-12">
         <section className="mb-9 flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
-          <div><div className="eyebrow mb-3 flex items-center gap-2"><span className="h-px w-6 bg-primary" /> Market scanner / spot</div><h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">Find the gap<br /><span className="text-primary">before it closes.</span></h1><p className="mt-4 max-w-xl text-sm leading-6 text-muted-foreground">Triangular routes across every crypto coin quoted on Bybit spot — no fiat, no tokenized stocks.</p></div>
+          <div><div className="eyebrow mb-3 flex items-center gap-2"><span className="h-px w-6 bg-primary" /> Market scanner / spot</div><h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">Find the gap<br /><span className="text-primary">before it closes.</span></h1><p className="mt-4 max-w-xl text-sm leading-6 text-muted-foreground">{universe === "xstocks" ? "xStock-to-xStock routes on Bybit spot, routed through USDT — the only crypto allowed on these cycles." : "Triangular routes across every crypto coin quoted on Bybit spot — no fiat, no tokenized stocks."}</p></div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground"><Clock3 className="h-4 w-4 text-primary" /> Updated {lastUpdated}<span className="text-border">·</span>10s cadence</div>
         </section>
 
