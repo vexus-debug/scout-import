@@ -52,15 +52,19 @@ const isCryptoFiatInstrument = (instrument: Instrument) =>
 /** Crypto + stocks universe: keeps crypto and xStock pairs, drops fiat-quoted instruments. */
 const isCryptoStockInstrument = (instrument: Instrument) =>
   !FIAT.has(instrument.baseCoin) && !FIAT.has(instrument.quoteCoin);
+/** Stocks + fiat universe: keeps tokenized stocks and fiat-quoted pairs, drops pure crypto-crypto instruments. */
+const isStocksFiatInstrument = (instrument: Instrument) =>
+  instrument.symbolType === "xstocks" || FIAT.has(instrument.baseCoin) || FIAT.has(instrument.quoteCoin);
 /** xStocks universe: tokenized stocks quoted in USDT — the only crypto allowed on these routes. */
 const isXstockInstrument = (instrument: Instrument) =>
   instrument.symbolType === "xstocks" && instrument.quoteCoin === "USDT" && !FIAT.has(instrument.baseCoin);
-type Universe = "crypto" | "crypto-fiat" | "crypto-stocks" | "xstocks" | "cross";
+type Universe = "crypto" | "crypto-fiat" | "crypto-stocks" | "stocks-fiat" | "xstocks" | "cross";
 /** Per-universe filter. */
 const universeFilter: Record<Universe, (instrument: Instrument) => boolean> = {
   crypto: isCryptoInstrument,
   "crypto-fiat": isCryptoFiatInstrument,
   "crypto-stocks": isCryptoStockInstrument,
+  "stocks-fiat": isStocksFiatInstrument,
   xstocks: isXstockInstrument,
   cross: () => true,
 };
@@ -91,6 +95,15 @@ const UNIVERSE_COPY: Record<Universe, { tag: string; hero: string; pairLabel: st
     assetLabel: "Crypto & xStocks",
     excludedLabel: "Fiat currencies",
     convertLegs: "Crypto ↔ xStock hops off spot",
+  },
+  "stocks-fiat": {
+    tag: "xS↔$",
+    hero: "Routes bridging tokenized stocks and fiat-quoted pairs on Bybit spot — pure crypto-crypto pairs excluded.",
+    pairLabel: "Stocks + fiat pairs",
+    spotLabel: "Stocks + fiat spot",
+    assetLabel: "xStocks & fiat",
+    excludedLabel: "Pure crypto",
+    convertLegs: "Stock ↔ fiat hops off spot",
   },
   xstocks: {
     tag: "xS↔₮",
