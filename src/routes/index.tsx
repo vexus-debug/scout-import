@@ -46,13 +46,21 @@ const FIAT = new Set([
 /** Crypto-only universe: drops tokenized stock (xStocks) and fiat-quoted instruments. */
 const isCryptoInstrument = (instrument: Instrument) =>
   instrument.symbolType !== "xstocks" && !FIAT.has(instrument.baseCoin) && !FIAT.has(instrument.quoteCoin);
+/** Crypto + fiat universe: keeps crypto and fiat-quoted pairs, drops tokenized stocks. */
+const isCryptoFiatInstrument = (instrument: Instrument) =>
+  instrument.symbolType !== "xstocks";
+/** Crypto + stocks universe: keeps crypto and xStock pairs, drops fiat-quoted instruments. */
+const isCryptoStockInstrument = (instrument: Instrument) =>
+  !FIAT.has(instrument.baseCoin) && !FIAT.has(instrument.quoteCoin);
 /** xStocks universe: tokenized stocks quoted in USDT — the only crypto allowed on these routes. */
 const isXstockInstrument = (instrument: Instrument) =>
   instrument.symbolType === "xstocks" && instrument.quoteCoin === "USDT" && !FIAT.has(instrument.baseCoin);
-type Universe = "crypto" | "xstocks" | "cross";
-/** Per-universe filter: cross-asset mode keeps everything (crypto, xStocks, fiat-quoted). */
+type Universe = "crypto" | "crypto-fiat" | "crypto-stocks" | "xstocks" | "cross";
+/** Per-universe filter. */
 const universeFilter: Record<Universe, (instrument: Instrument) => boolean> = {
   crypto: isCryptoInstrument,
+  "crypto-fiat": isCryptoFiatInstrument,
+  "crypto-stocks": isCryptoStockInstrument,
   xstocks: isXstockInstrument,
   cross: () => true,
 };
@@ -65,6 +73,24 @@ const UNIVERSE_COPY: Record<Universe, { tag: string; hero: string; pairLabel: st
     assetLabel: "Crypto coins",
     excludedLabel: "Fiat & stocks",
     convertLegs: "Coin → coin hops off spot",
+  },
+  "crypto-fiat": {
+    tag: "₿↔$",
+    hero: "Routes bridging crypto and fiat-quoted pairs on Bybit spot — no tokenized stocks.",
+    pairLabel: "Crypto + fiat pairs",
+    spotLabel: "Crypto + fiat spot",
+    assetLabel: "Crypto & fiat",
+    excludedLabel: "Tokenized stocks",
+    convertLegs: "Crypto ↔ fiat hops off spot",
+  },
+  "crypto-stocks": {
+    tag: "₿↔xS",
+    hero: "Routes bridging crypto and tokenized stocks on Bybit spot — no fiat currencies.",
+    pairLabel: "Crypto + stock pairs",
+    spotLabel: "Crypto + stock spot",
+    assetLabel: "Crypto & xStocks",
+    excludedLabel: "Fiat currencies",
+    convertLegs: "Crypto ↔ xStock hops off spot",
   },
   xstocks: {
     tag: "xS↔₮",
@@ -527,7 +553,7 @@ function Scanner() {
           <aside className="panel rounded-lg p-5">
             <div className="mb-6 flex items-center justify-between"><div><div className="eyebrow">Scanner controls</div><h2 className="mt-1 text-lg font-semibold text-foreground">Tune the signal</h2></div><SlidersHorizontal className="h-5 w-5 text-muted-foreground" /></div>
             <div className="space-y-5">
-              <label className="block"><span className="mb-2 flex items-center justify-between text-xs font-medium text-foreground">Route universe <span className="font-mono text-muted-foreground">{copy.tag}</span></span><select className="select-control h-10 w-full rounded-md px-3 text-sm" value={universe} onChange={(event) => setUniverse(event.target.value as Universe)}><option value="crypto">Crypto only</option><option value="xstocks">xStocks only (USDT hub)</option><option value="cross">Cross-asset (crypto + stocks + fiat)</option></select></label>
+              <label className="block"><span className="mb-2 flex items-center justify-between text-xs font-medium text-foreground">Route universe <span className="font-mono text-muted-foreground">{copy.tag}</span></span><select className="select-control h-10 w-full rounded-md px-3 text-sm" value={universe} onChange={(event) => setUniverse(event.target.value as Universe)}><option value="crypto">Crypto only</option><option value="crypto-fiat">Crypto + fiat</option><option value="crypto-stocks">Crypto + stocks</option><option value="xstocks">xStocks only (USDT hub)</option><option value="cross">Cross-asset (crypto + stocks + fiat)</option></select></label>
               <label className="block"><span className="mb-2 flex items-center justify-between text-xs font-medium text-foreground">Minimum net profit <CircleHelp className="h-3.5 w-3.5 text-muted-foreground" /></span><div className="relative"><input className="input-control mono h-10 w-full rounded-md px-3 pr-10 text-sm" type="number" min="0" step="0.05" value={minProfit} onChange={(event) => setMinProfit(event.target.value)} /><span className="absolute right-3 top-2.5 font-mono text-xs text-muted-foreground">%</span></div></label>
               <label className="block"><span className="mb-2 flex items-center justify-between text-xs font-medium text-foreground">Fee per leg <span className="font-mono text-muted-foreground">{(fee * 100).toFixed(2)}%</span></span><input className="w-full accent-primary" type="range" min="0" max="0.003" step="0.0001" value={fee} onChange={(event) => setFee(Number(event.target.value))} /></label>
               <label className="block"><span className="mb-2 flex items-center justify-between text-xs font-medium text-foreground">Max legs per cycle <span className="font-mono text-muted-foreground">{maxLegs}</span></span><select className="select-control h-10 w-full rounded-md px-3 text-sm" value={maxLegs} onChange={(event) => setMaxLegs(Number(event.target.value))}><option value={3}>3 legs</option><option value={4}>4 legs</option><option value={5}>5 legs (slow)</option></select></label>
