@@ -49,7 +49,42 @@ const isCryptoInstrument = (instrument: Instrument) =>
 /** xStocks universe: tokenized stocks quoted in USDT — the only crypto allowed on these routes. */
 const isXstockInstrument = (instrument: Instrument) =>
   instrument.symbolType === "xstocks" && instrument.quoteCoin === "USDT" && !FIAT.has(instrument.baseCoin);
-type Universe = "crypto" | "xstocks";
+type Universe = "crypto" | "xstocks" | "cross";
+/** Per-universe filter: cross-asset mode keeps everything (crypto, xStocks, fiat-quoted). */
+const universeFilter: Record<Universe, (instrument: Instrument) => boolean> = {
+  crypto: isCryptoInstrument,
+  xstocks: isXstockInstrument,
+  cross: () => true,
+};
+const UNIVERSE_COPY: Record<Universe, { tag: string; hero: string; pairLabel: string; spotLabel: string; assetLabel: string; excludedLabel: string; convertLegs: string }> = {
+  crypto: {
+    tag: "CRYPTO",
+    hero: "Triangular routes across every crypto coin quoted on Bybit spot — no fiat, no tokenized stocks.",
+    pairLabel: "Crypto pairs",
+    spotLabel: "Crypto spot",
+    assetLabel: "Crypto coins",
+    excludedLabel: "Fiat & stocks",
+    convertLegs: "Coin → coin hops off spot",
+  },
+  xstocks: {
+    tag: "xS↔₮",
+    hero: "xStock-to-xStock routes on Bybit spot, routed through USDT — the only crypto allowed on these cycles.",
+    pairLabel: "xStock pairs",
+    spotLabel: "xStock spot",
+    assetLabel: "xStocks",
+    excludedLabel: "Fiat & other crypto",
+    convertLegs: "xStock ↔ USDT hops off spot",
+  },
+  cross: {
+    tag: "ALL",
+    hero: "Cross-asset routes spanning crypto, tokenized stocks, and fiat-quoted pairs on Bybit spot.",
+    pairLabel: "All pairs",
+    spotLabel: "Full spot book",
+    assetLabel: "Base assets",
+    excludedLabel: "Nothing",
+    convertLegs: "Any asset hops off spot",
+  },
+};
 /** Work units processed per animation frame while the incremental scan runs. */
 
 export const Route = createFileRoute("/")({
@@ -157,8 +192,8 @@ function createScanPass(
   convertSpread: number,
   universe: Universe,
 ) {
-  // Universe filter: crypto mode drops xStocks/fiat; xstocks mode keeps only USDT-quoted xStocks.
-  instruments = instruments.filter(universe === "xstocks" ? isXstockInstrument : isCryptoInstrument);
+  // Universe filter: crypto drops xStocks/fiat; xstocks keeps only USDT-quoted xStocks; cross keeps all.
+  instruments = instruments.filter(universeFilter[universe]);
   const graph = buildGraph(instruments, tickers);
   for (const edges of graph.values()) edges.sort((a, b) => b.volume - a.volume);
   const index = buildUsdIndex(instruments, tickers);
