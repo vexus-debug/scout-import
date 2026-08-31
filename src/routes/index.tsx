@@ -32,6 +32,20 @@ const DEFAULT_CONVERT_SPREAD = 0.002;
 const WORK_BUDGET = 4_000_000;
 /** Spot legs kept in the convert-bridge pool (turnover-filtered, ranked by USD-normalised gain). */
 const CONVERT_POOL = 90;
+/** Fiat currencies quoted on Bybit spot — excluded so the scanner only ever touches crypto. */
+const FIAT = new Set([
+  "USD", "EUR", "GBP", "JPY", "KRW", "AUD", "CAD", "CHF", "NZD", "BRL", "TRY", "PLN", "CZK", "DKK", "HUF", "NOK", "SEK", "RON",
+  "ARS", "MXN", "UAH", "RUB", "NGN", "KES", "ZAR", "AED", "SAR", "ILS", "HKD", "SGD", "TWD", "IDR", "INR", "PHP", "VND", "THB",
+  "MYR", "KZT", "GEL", "MNT", "BDT", "PKR", "LKR", "EGP", "MAD", "DZD", "TND", "QAR", "KWD", "BHD", "OMR", "JOD", "COP", "CLP",
+  "PEN", "UYU", "PYG", "BOB", "GTQ", "DOP", "CRC", "PAB", "NIO", "HNL", "SVC", "GYD", "BBD", "XCD", "JMD", "TTD", "BSD", "BZD",
+  "BWP", "MZN", "ZMW", "TZS", "UGX", "GHS", "XOF", "XAF", "CDF", "RWF", "BIF", "DJF", "ETB", "MGA", "MUR", "SCR", "KMF", "SLL",
+  "LRD", "GMD", "GNF", "HTG", "CUP", "VES", "NPR", "AFN", "MMK", "KHR", "LAK", "MOP", "BND", "FJD", "PGK", "WST", "TOP", "SBD",
+  "VUV", "ISK", "GIP", "FKP", "SHP", "GGP", "JEP", "IMP", "BAM", "MKD", "RSD", "MDL", "ALL", "BYN", "TMT", "TJS", "KGS", "UZS",
+  "AZN", "AMD", "IQD", "LBP", "SYP", "YER", "LYD", "SDG", "SSP", "ERN", "SOS", "MRU", "STN", "CVE", "AOA", "NAD", "LSL", "SZL",
+]);
+/** Crypto-only universe: drops tokenized stock (xStocks) and fiat-quoted instruments. */
+const isCryptoInstrument = (instrument: Instrument) =>
+  instrument.symbolType !== "xstocks" && !FIAT.has(instrument.baseCoin) && !FIAT.has(instrument.quoteCoin);
 /** Work units processed per animation frame while the incremental scan runs. */
 
 export const Route = createFileRoute("/")({
