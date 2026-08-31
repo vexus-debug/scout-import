@@ -338,7 +338,7 @@ function Scanner() {
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [minProfit, setMinProfit] = useState("0.10");
   const [fee, setFee] = useState(DEFAULT_FEE);
-  const [assetFilter, setAssetFilter] = useState("All routes");
+  
   const [maxLegs, setMaxLegs] = useState(4);
   const [useConvert, setUseConvert] = useState(true);
   const [convertSpread, setConvertSpread] = useState(DEFAULT_CONVERT_SPREAD);
@@ -430,14 +430,7 @@ function Scanner() {
   const scanPercent = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
 
   const threshold = parseNumber(minProfit) / 100;
-  const matchesUniverse = (item: Opportunity) => {
-    if (assetFilter === "Crypto only") return item.stocks === 0;
-    if (assetFilter === "1+ xStock") return item.stocks >= 1;
-    if (assetFilter === "2+ xStocks") return item.stocks >= 2;
-    if (assetFilter === "3+ xStocks") return item.stocks >= 3;
-    return true;
-  };
-  const filtered = opportunities.filter((item) => item.net >= threshold && matchesUniverse(item) && (!query || item.assets.join(" ").toLowerCase().includes(query.toLowerCase())));
+  const filtered = opportunities.filter((item) => item.net >= threshold && (!query || item.assets.join(" ").toLowerCase().includes(query.toLowerCase())));
   const xstocks = market?.instruments.filter((item) => item.symbolType === "xstocks") ?? [];
   const cryptoInstruments = market?.instruments.filter((item) => item.symbolType !== "xstocks" && item.status === "Trading") ?? [];
   const best = opportunities[0];
