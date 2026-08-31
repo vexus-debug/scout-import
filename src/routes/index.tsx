@@ -400,7 +400,7 @@ function Scanner() {
 
   useEffect(() => {
     if (!scanRequest) return;
-    const pass = createScanPass(scanRequest.market.instruments, scanRequest.market.tickers, scanRequest.fee, scanRequest.maxLegs, scanRequest.useConvert, scanRequest.convertSpread);
+    const pass = createScanPass(scanRequest.market.instruments, scanRequest.market.tickers, scanRequest.fee, scanRequest.maxLegs, scanRequest.useConvert, scanRequest.convertSpread, scanRequest.universe);
     const total = pass.steps.length;
     const best = new Map<string, Opportunity>();
     let cursor = 0;
@@ -437,7 +437,7 @@ function Scanner() {
 
   const threshold = parseNumber(minProfit) / 100;
   const filtered = opportunities.filter((item) => item.net >= threshold && (!query || item.assets.join(" ").toLowerCase().includes(query.toLowerCase())));
-  const cryptoInstruments = market?.instruments.filter((item) => item.status === "Trading" && isCryptoInstrument(item)) ?? [];
+  const cryptoInstruments = market?.instruments.filter((item) => item.status === "Trading" && (universe === "xstocks" ? isXstockInstrument(item) : isCryptoInstrument(item))) ?? [];
   const best = opportunities[0];
   const lastUpdated = market ? new Date(market.fetchedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "—";
 
