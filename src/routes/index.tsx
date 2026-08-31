@@ -46,6 +46,10 @@ const FIAT = new Set([
 /** Crypto-only universe: drops tokenized stock (xStocks) and fiat-quoted instruments. */
 const isCryptoInstrument = (instrument: Instrument) =>
   instrument.symbolType !== "xstocks" && !FIAT.has(instrument.baseCoin) && !FIAT.has(instrument.quoteCoin);
+/** xStocks universe: tokenized stocks quoted in USDT — the only crypto allowed on these routes. */
+const isXstockInstrument = (instrument: Instrument) =>
+  instrument.symbolType === "xstocks" && instrument.quoteCoin === "USDT" && !FIAT.has(instrument.baseCoin);
+type Universe = "crypto" | "xstocks";
 /** Work units processed per animation frame while the incremental scan runs. */
 
 export const Route = createFileRoute("/")({
