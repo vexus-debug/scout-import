@@ -32,15 +32,29 @@ const DEFAULT_CONVERT_SPREAD = 0.002;
 const WORK_BUDGET = 4_000_000;
 /** Spot legs kept in the convert-bridge pool (turnover-filtered, ranked by USD-normalised gain). */
 const CONVERT_POOL = 90;
+/** Fiat currencies quoted on Bybit spot — excluded so the scanner only ever touches crypto. */
+const FIAT = new Set([
+  "USD", "EUR", "GBP", "JPY", "KRW", "AUD", "CAD", "CHF", "NZD", "BRL", "TRY", "PLN", "CZK", "DKK", "HUF", "NOK", "SEK", "RON",
+  "ARS", "MXN", "UAH", "RUB", "NGN", "KES", "ZAR", "AED", "SAR", "ILS", "HKD", "SGD", "TWD", "IDR", "INR", "PHP", "VND", "THB",
+  "MYR", "KZT", "GEL", "MNT", "BDT", "PKR", "LKR", "EGP", "MAD", "DZD", "TND", "QAR", "KWD", "BHD", "OMR", "JOD", "COP", "CLP",
+  "PEN", "UYU", "PYG", "BOB", "GTQ", "DOP", "CRC", "PAB", "NIO", "HNL", "SVC", "GYD", "BBD", "XCD", "JMD", "TTD", "BSD", "BZD",
+  "BWP", "MZN", "ZMW", "TZS", "UGX", "GHS", "XOF", "XAF", "CDF", "RWF", "BIF", "DJF", "ETB", "MGA", "MUR", "SCR", "KMF", "SLL",
+  "LRD", "GMD", "GNF", "HTG", "CUP", "VES", "NPR", "AFN", "MMK", "KHR", "LAK", "MOP", "BND", "FJD", "PGK", "WST", "TOP", "SBD",
+  "VUV", "ISK", "GIP", "FKP", "SHP", "GGP", "JEP", "IMP", "BAM", "MKD", "RSD", "MDL", "ALL", "BYN", "TMT", "TJS", "KGS", "UZS",
+  "AZN", "AMD", "IQD", "LBP", "SYP", "YER", "LYD", "SDG", "SSP", "ERN", "SOS", "MRU", "STN", "CVE", "AOA", "NAD", "LSL", "SZL",
+]);
+/** Crypto-only universe: drops tokenized stock (xStocks) and fiat-quoted instruments. */
+const isCryptoInstrument = (instrument: Instrument) =>
+  instrument.symbolType !== "xstocks" && !FIAT.has(instrument.baseCoin) && !FIAT.has(instrument.quoteCoin);
 /** Work units processed per animation frame while the incremental scan runs. */
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Loopline — Bybit Arbitrage Scanner" },
-      { name: "description", content: "Live triangular arbitrage scanner for Bybit spot and xStocks market data." },
+      { name: "description", content: "Live triangular arbitrage scanner for Bybit crypto spot markets." },
       { property: "og:title", content: "Loopline — Bybit Arbitrage Scanner" },
-      { property: "og:description", content: "Live triangular arbitrage scanner for Bybit spot and xStocks market data." },
+      { property: "og:description", content: "Live triangular arbitrage scanner for Bybit crypto spot markets." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -138,6 +152,8 @@ function createScanPass(
   useConvert: boolean,
   convertSpread: number,
 ) {
+  // Crypto-only universe: xStocks and fiat pairs never enter the graph.
+  instruments = instruments.filter(isCryptoInstrument);
   const graph = buildGraph(instruments, tickers);
   for (const edges of graph.values()) edges.sort((a, b) => b.volume - a.volume);
   const index = buildUsdIndex(instruments, tickers);
@@ -322,7 +338,7 @@ function Scanner() {
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [minProfit, setMinProfit] = useState("0.10");
   const [fee, setFee] = useState(DEFAULT_FEE);
-  const [assetFilter, setAssetFilter] = useState("All routes");
+  
   const [maxLegs, setMaxLegs] = useState(4);
   const [useConvert, setUseConvert] = useState(true);
   const [convertSpread, setConvertSpread] = useState(DEFAULT_CONVERT_SPREAD);
@@ -414,16 +430,8 @@ function Scanner() {
   const scanPercent = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
 
   const threshold = parseNumber(minProfit) / 100;
-  const matchesUniverse = (item: Opportunity) => {
-    if (assetFilter === "Crypto only") return item.stocks === 0;
-    if (assetFilter === "1+ xStock") return item.stocks >= 1;
-    if (assetFilter === "2+ xStocks") return item.stocks >= 2;
-    if (assetFilter === "3+ xStocks") return item.stocks >= 3;
-    return true;
-  };
-  const filtered = opportunities.filter((item) => item.net >= threshold && matchesUniverse(item) && (!query || item.assets.join(" ").toLowerCase().includes(query.toLowerCase())));
-  const xstocks = market?.instruments.filter((item) => item.symbolType === "xstocks") ?? [];
-  const cryptoInstruments = market?.instruments.filter((item) => item.symbolType !== "xstocks" && item.status === "Trading") ?? [];
+  const filtered = opportunities.filter((item) => item.net >= threshold && (!query || item.assets.join(" ").toLowerCase().includes(query.toLowerCase())));
+  const cryptoInstruments = market?.instruments.filter((item) => item.status === "Trading" && isCryptoInstrument(item)) ?? [];
   const best = opportunities[0];
   const lastUpdated = market ? new Date(market.fetchedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "—";
 
@@ -445,13 +453,13 @@ function Scanner() {
 
       <div className="relative mx-auto max-w-[1440px] px-5 pb-12 pt-8 lg:px-8 lg:pt-12">
         <section className="mb-9 flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
-          <div><div className="eyebrow mb-3 flex items-center gap-2"><span className="h-px w-6 bg-primary" /> Market scanner / spot</div><h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">Find the gap<br /><span className="text-primary">before it closes.</span></h1><p className="mt-4 max-w-xl text-sm leading-6 text-muted-foreground">Triangular routes across Bybit spot markets, including the newly listed xStocks instruments.</p></div>
+          <div><div className="eyebrow mb-3 flex items-center gap-2"><span className="h-px w-6 bg-primary" /> Market scanner / spot</div><h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">Find the gap<br /><span className="text-primary">before it closes.</span></h1><p className="mt-4 max-w-xl text-sm leading-6 text-muted-foreground">Triangular routes across every crypto coin quoted on Bybit spot — no fiat, no tokenized stocks.</p></div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground"><Clock3 className="h-4 w-4 text-primary" /> Updated {lastUpdated}<span className="text-border">·</span>10s cadence</div>
         </section>
 
         <section className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Metric label="Live instruments" value={market ? market.instruments.length.toLocaleString() : "—"} detail="Bybit spot" icon={<LayoutGrid />} />
-          <Metric label="xStocks listed" value={xstocks.length ? xstocks.length.toString() : "—"} detail="Spot symbols" icon={<WalletCards />} tone="warning" />
+          <Metric label="Live instruments" value={cryptoInstruments.length ? cryptoInstruments.length.toLocaleString() : "—"} detail="Bybit crypto spot" icon={<LayoutGrid />} />
+          <Metric label="Crypto pairs" value={cryptoInstruments.length ? cryptoInstruments.length.toLocaleString() : "—"} detail="Scanned universe" icon={<WalletCards />} tone="positive" />
           <Metric label="Routes above floor" value={filtered.length.toString()} detail={`${minProfit}% net threshold`} icon={<Zap />} tone="positive" />
           <Metric label="Best net edge" value={best ? formatPercent(best.net) : "—"} detail={best ? best.assets.slice(0, 3).join(" → ") : "Waiting for quotes"} icon={<Gauge />} tone="coral" />
         </section>
@@ -471,7 +479,7 @@ function Scanner() {
                 </div></div>
               <div className="flex gap-1 rounded-md bg-surface-subtle p-1"><button className={`rounded px-3 py-1.5 text-xs font-medium transition-colors ${tab === "opportunities" ? "bg-accent text-primary" : "text-muted-foreground hover:text-foreground"}`} onClick={() => setTab("opportunities")}>Routes</button><button className={`rounded px-3 py-1.5 text-xs font-medium transition-colors ${tab === "markets" ? "bg-accent text-primary" : "text-muted-foreground hover:text-foreground"}`} onClick={() => setTab("markets")}>Markets</button></div>
             </div>
-            {tab === "opportunities" ? <OpportunityTable opportunities={filtered} loading={loading} onSelect={setSelected} /> : <MarketTable instruments={market?.instruments ?? []} tickers={market?.tickers ?? []} query={query} />}
+            {tab === "opportunities" ? <OpportunityTable opportunities={filtered} loading={loading} onSelect={setSelected} /> : <MarketTable instruments={cryptoInstruments} tickers={market?.tickers ?? []} query={query} />}
           </div>
 
           <aside className="panel rounded-lg p-5">
@@ -479,19 +487,18 @@ function Scanner() {
             <div className="space-y-5">
               <label className="block"><span className="mb-2 flex items-center justify-between text-xs font-medium text-foreground">Minimum net profit <CircleHelp className="h-3.5 w-3.5 text-muted-foreground" /></span><div className="relative"><input className="input-control mono h-10 w-full rounded-md px-3 pr-10 text-sm" type="number" min="0" step="0.05" value={minProfit} onChange={(event) => setMinProfit(event.target.value)} /><span className="absolute right-3 top-2.5 font-mono text-xs text-muted-foreground">%</span></div></label>
               <label className="block"><span className="mb-2 flex items-center justify-between text-xs font-medium text-foreground">Fee per leg <span className="font-mono text-muted-foreground">{(fee * 100).toFixed(2)}%</span></span><input className="w-full accent-primary" type="range" min="0" max="0.003" step="0.0001" value={fee} onChange={(event) => setFee(Number(event.target.value))} /></label>
-              <label className="block"><span className="mb-2 block text-xs font-medium text-foreground">Route universe</span><select className="select-control h-10 w-full rounded-md px-3 text-sm" value={assetFilter} onChange={(event) => setAssetFilter(event.target.value)}><option>All routes</option><option>Crypto only</option><option>1+ xStock</option><option>2+ xStocks</option><option>3+ xStocks</option></select></label>
               <label className="block"><span className="mb-2 flex items-center justify-between text-xs font-medium text-foreground">Max legs per cycle <span className="font-mono text-muted-foreground">{maxLegs}</span></span><select className="select-control h-10 w-full rounded-md px-3 text-sm" value={maxLegs} onChange={(event) => setMaxLegs(Number(event.target.value))}><option value={3}>3 legs</option><option value={4}>4 legs</option><option value={5}>5 legs (slow)</option></select></label>
-              <div className="flex items-center justify-between border-t border-border pt-5"><div><div className="text-sm font-medium text-foreground">Bybit Convert legs</div><div className="mt-1 text-xs text-muted-foreground">Stock → stock hops off spot</div></div><button aria-label="Toggle Bybit Convert legs" className="switch-track flex h-5 w-9 cursor-pointer items-center rounded-full p-0.5 transition-colors" data-on={useConvert} onClick={() => setUseConvert((value) => !value)}><span className="switch-thumb h-4 w-4 rounded-full transition-transform" /></button></div>
+              <div className="flex items-center justify-between border-t border-border pt-5"><div><div className="text-sm font-medium text-foreground">Bybit Convert legs</div><div className="mt-1 text-xs text-muted-foreground">Coin → coin hops off spot</div></div><button aria-label="Toggle Bybit Convert legs" className="switch-track flex h-5 w-9 cursor-pointer items-center rounded-full p-0.5 transition-colors" data-on={useConvert} onClick={() => setUseConvert((value) => !value)}><span className="switch-thumb h-4 w-4 rounded-full transition-transform" /></button></div>
               <label className={`block transition-opacity ${useConvert ? "" : "pointer-events-none opacity-40"}`}><span className="mb-2 flex items-center justify-between text-xs font-medium text-foreground">Convert spread <span className="font-mono text-muted-foreground">{(convertSpread * 100).toFixed(2)}%</span></span><input className="w-full accent-primary" type="range" min="0" max="0.01" step="0.0005" value={convertSpread} disabled={!useConvert} onChange={(event) => setConvertSpread(Number(event.target.value))} /></label>
               <div className="flex items-center justify-between border-t border-border pt-5"><div><div className="text-sm font-medium text-foreground">Auto refresh</div><div className="mt-1 text-xs text-muted-foreground">Every 10 seconds</div></div><button aria-label="Toggle auto refresh" className="switch-track flex h-5 w-9 cursor-pointer items-center rounded-full p-0.5 transition-colors" data-on={autoRefresh} onClick={() => setAutoRefresh((value) => !value)}><span className="switch-thumb h-4 w-4 rounded-full transition-transform" /></button></div>
               <Button className="scan-button w-full" onClick={() => void runScan()} disabled={loading || scanning}><RefreshCw className={loading || scanning ? "animate-spin" : ""} /> {scanning ? "Scanning…" : "Scan now"}</Button>
             </div>
-            <div className="mt-6 flex gap-2 rounded-md border border-warning/25 bg-warning/10 p-3 text-[11px] leading-4 text-warning"><Info className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span>{useConvert ? <>All {xstocks.length} xStocks trade only against USDT in spot, so stock → stock hops use Bybit Convert. Convert quotes are not public: legs are modelled at the USD reference mid minus the {(convertSpread * 100).toFixed(2)}% spread above, with no exchange fee. Real quotes may be wider, so verify each Convert leg before executing.</> : <>Convert legs are off, so routes are limited to spot pairs and can touch at most one xStock (all {xstocks.length} are USDT-only). Enable Convert to search multi-stock cycles.</>}</span></div>
+            <div className="mt-6 flex gap-2 rounded-md border border-warning/25 bg-warning/10 p-3 text-[11px] leading-4 text-warning"><Info className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span>{useConvert ? <>Convert legs bridge coins that share no spot pair. Convert quotes are not public: legs are modelled at the USD reference mid minus the {(convertSpread * 100).toFixed(2)}% spread above, with no exchange fee. Real quotes may be wider, so verify each Convert leg before executing.</> : <>Convert legs are off, so routes are limited to coins connected by spot pairs. Enable Convert to search cycles that bridge unconnected coins.</>}</span></div>
           </aside>
         </section>
 
         <section className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-          <div className="panel rounded-lg p-5"><div className="mb-5 flex items-start justify-between"><div><div className="eyebrow">Coverage map</div><h2 className="mt-1 text-lg font-semibold text-foreground">What Bybit is exposing</h2></div><ExternalLink className="h-4 w-4 text-muted-foreground" /></div><div className="grid gap-3 sm:grid-cols-2"><Coverage label="Crypto spot" value={cryptoInstruments.length} caption="Tradable instruments" tone="positive" /><Coverage label="xStocks" value={xstocks.length} caption="Tokenized stock pairs" tone="warning" /><Coverage label="Stock / stock links" value={0} caption="Direct pairs in spot" tone="coral" /><Coverage label="Quote currencies" value={new Set((market?.instruments ?? []).map((item) => item.quoteCoin)).size || "—"} caption="Available for routing" tone="neutral" /></div></div>
+          <div className="panel rounded-lg p-5"><div className="mb-5 flex items-start justify-between"><div><div className="eyebrow">Coverage map</div><h2 className="mt-1 text-lg font-semibold text-foreground">What Bybit is exposing</h2></div><ExternalLink className="h-4 w-4 text-muted-foreground" /></div><div className="grid gap-3 sm:grid-cols-2"><Coverage label="Crypto spot" value={cryptoInstruments.length} caption="Tradable instruments" tone="positive" /><Coverage label="Crypto coins" value={new Set(cryptoInstruments.map((item) => item.baseCoin)).size || "—"} caption="Unique base assets" tone="neutral" /><Coverage label="Fiat &amp; stocks" value={0} caption="Excluded from scanning" tone="coral" /><Coverage label="Quote coins" value={new Set(cryptoInstruments.map((item) => item.quoteCoin)).size || "—"} caption="Available for routing" tone="neutral" /></div></div>
           <div className="panel rounded-lg p-5"><div className="mb-5 flex items-start justify-between"><div><div className="eyebrow">Market pulse</div><h2 className="mt-1 text-lg font-semibold text-foreground">Signal health</h2></div><Search className="h-4 w-4 text-muted-foreground" /></div><div className="mb-5 flex items-end justify-between"><div><div className="font-mono text-3xl font-semibold text-primary">{market ? "NOMINAL" : "—"}</div><div className="mt-1 text-xs text-muted-foreground">Public feed connection</div></div><div className="text-right"><div className="font-mono text-sm text-foreground">{market?.tickers.length ?? "—"}</div><div className="text-xs text-muted-foreground">quotes parsed</div></div></div><div className="h-16 overflow-hidden"><svg viewBox="0 0 520 64" preserveAspectRatio="none" className="h-full w-full"><path className="sparkline" d="M0 48 C22 46 24 35 44 39 S70 27 91 34 S120 52 142 40 S166 44 182 26 S208 35 226 32 S248 46 266 31 S288 21 308 30 S337 46 354 26 S376 31 396 17 S423 35 438 27 S466 36 482 17 S501 18 520 7" /></svg></div></div>
         </section>
         {error && <div className="mt-6 rounded-md border border-coral/30 bg-coral/10 p-3 text-sm text-coral">{error}. Try refreshing to reconnect.</div>}
