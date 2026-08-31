@@ -431,8 +431,7 @@ function Scanner() {
 
   const threshold = parseNumber(minProfit) / 100;
   const filtered = opportunities.filter((item) => item.net >= threshold && (!query || item.assets.join(" ").toLowerCase().includes(query.toLowerCase())));
-  const xstocks = market?.instruments.filter((item) => item.symbolType === "xstocks") ?? [];
-  const cryptoInstruments = market?.instruments.filter((item) => item.symbolType !== "xstocks" && item.status === "Trading") ?? [];
+  const cryptoInstruments = market?.instruments.filter((item) => item.status === "Trading" && isCryptoInstrument(item)) ?? [];
   const best = opportunities[0];
   const lastUpdated = market ? new Date(market.fetchedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "—";
 
@@ -459,7 +458,7 @@ function Scanner() {
         </section>
 
         <section className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Metric label="Live instruments" value={market ? market.instruments.length.toLocaleString() : "—"} detail="Bybit spot" icon={<LayoutGrid />} />
+          <Metric label="Live instruments" value={cryptoInstruments.length ? cryptoInstruments.length.toLocaleString() : "—"} detail="Bybit crypto spot" icon={<LayoutGrid />} />
           <Metric label="Crypto pairs" value={cryptoInstruments.length ? cryptoInstruments.length.toLocaleString() : "—"} detail="Scanned universe" icon={<WalletCards />} tone="positive" />
           <Metric label="Routes above floor" value={filtered.length.toString()} detail={`${minProfit}% net threshold`} icon={<Zap />} tone="positive" />
           <Metric label="Best net edge" value={best ? formatPercent(best.net) : "—"} detail={best ? best.assets.slice(0, 3).join(" → ") : "Waiting for quotes"} icon={<Gauge />} tone="coral" />
@@ -480,7 +479,7 @@ function Scanner() {
                 </div></div>
               <div className="flex gap-1 rounded-md bg-surface-subtle p-1"><button className={`rounded px-3 py-1.5 text-xs font-medium transition-colors ${tab === "opportunities" ? "bg-accent text-primary" : "text-muted-foreground hover:text-foreground"}`} onClick={() => setTab("opportunities")}>Routes</button><button className={`rounded px-3 py-1.5 text-xs font-medium transition-colors ${tab === "markets" ? "bg-accent text-primary" : "text-muted-foreground hover:text-foreground"}`} onClick={() => setTab("markets")}>Markets</button></div>
             </div>
-            {tab === "opportunities" ? <OpportunityTable opportunities={filtered} loading={loading} onSelect={setSelected} /> : <MarketTable instruments={market?.instruments ?? []} tickers={market?.tickers ?? []} query={query} />}
+            {tab === "opportunities" ? <OpportunityTable opportunities={filtered} loading={loading} onSelect={setSelected} /> : <MarketTable instruments={cryptoInstruments} tickers={market?.tickers ?? []} query={query} />}
           </div>
 
           <aside className="panel rounded-lg p-5">
@@ -489,7 +488,7 @@ function Scanner() {
               <label className="block"><span className="mb-2 flex items-center justify-between text-xs font-medium text-foreground">Minimum net profit <CircleHelp className="h-3.5 w-3.5 text-muted-foreground" /></span><div className="relative"><input className="input-control mono h-10 w-full rounded-md px-3 pr-10 text-sm" type="number" min="0" step="0.05" value={minProfit} onChange={(event) => setMinProfit(event.target.value)} /><span className="absolute right-3 top-2.5 font-mono text-xs text-muted-foreground">%</span></div></label>
               <label className="block"><span className="mb-2 flex items-center justify-between text-xs font-medium text-foreground">Fee per leg <span className="font-mono text-muted-foreground">{(fee * 100).toFixed(2)}%</span></span><input className="w-full accent-primary" type="range" min="0" max="0.003" step="0.0001" value={fee} onChange={(event) => setFee(Number(event.target.value))} /></label>
               <label className="block"><span className="mb-2 flex items-center justify-between text-xs font-medium text-foreground">Max legs per cycle <span className="font-mono text-muted-foreground">{maxLegs}</span></span><select className="select-control h-10 w-full rounded-md px-3 text-sm" value={maxLegs} onChange={(event) => setMaxLegs(Number(event.target.value))}><option value={3}>3 legs</option><option value={4}>4 legs</option><option value={5}>5 legs (slow)</option></select></label>
-              <div className="flex items-center justify-between border-t border-border pt-5"><div><div className="text-sm font-medium text-foreground">Bybit Convert legs</div><div className="mt-1 text-xs text-muted-foreground">Stock → stock hops off spot</div></div><button aria-label="Toggle Bybit Convert legs" className="switch-track flex h-5 w-9 cursor-pointer items-center rounded-full p-0.5 transition-colors" data-on={useConvert} onClick={() => setUseConvert((value) => !value)}><span className="switch-thumb h-4 w-4 rounded-full transition-transform" /></button></div>
+              <div className="flex items-center justify-between border-t border-border pt-5"><div><div className="text-sm font-medium text-foreground">Bybit Convert legs</div><div className="mt-1 text-xs text-muted-foreground">Coin → coin hops off spot</div></div><button aria-label="Toggle Bybit Convert legs" className="switch-track flex h-5 w-9 cursor-pointer items-center rounded-full p-0.5 transition-colors" data-on={useConvert} onClick={() => setUseConvert((value) => !value)}><span className="switch-thumb h-4 w-4 rounded-full transition-transform" /></button></div>
               <label className={`block transition-opacity ${useConvert ? "" : "pointer-events-none opacity-40"}`}><span className="mb-2 flex items-center justify-between text-xs font-medium text-foreground">Convert spread <span className="font-mono text-muted-foreground">{(convertSpread * 100).toFixed(2)}%</span></span><input className="w-full accent-primary" type="range" min="0" max="0.01" step="0.0005" value={convertSpread} disabled={!useConvert} onChange={(event) => setConvertSpread(Number(event.target.value))} /></label>
               <div className="flex items-center justify-between border-t border-border pt-5"><div><div className="text-sm font-medium text-foreground">Auto refresh</div><div className="mt-1 text-xs text-muted-foreground">Every 10 seconds</div></div><button aria-label="Toggle auto refresh" className="switch-track flex h-5 w-9 cursor-pointer items-center rounded-full p-0.5 transition-colors" data-on={autoRefresh} onClick={() => setAutoRefresh((value) => !value)}><span className="switch-thumb h-4 w-4 rounded-full transition-transform" /></button></div>
               <Button className="scan-button w-full" onClick={() => void runScan()} disabled={loading || scanning}><RefreshCw className={loading || scanning ? "animate-spin" : ""} /> {scanning ? "Scanning…" : "Scan now"}</Button>
